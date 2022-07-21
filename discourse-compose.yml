@@ -1,0 +1,78 @@
+version: '3.8'
+services:
+  postgresql:
+    image: docker.io/bitnami/postgresql:11
+    volumes:
+      - './discourse/postgresql:/bitnami/postgresql'
+    environment:
+      - POSTGRES_PASSWORD=discourse
+      - POSTGRESQL_DATABASE=discourse
+  redis:
+    image: docker.io/bitnami/redis:7.0
+    volumes:
+      - './discourse/redis:/bitnami/redis'
+    environment:
+      - REDIS_PASSWORD=discourse
+  discourse:
+    image: docker.io/bitnami/discourse:2
+    volumes:
+      - './discourse/discourse:/bitnami/discourse'
+    depends_on:
+      - postgresql
+      - redis
+    environment:
+      - DISCOURSE_HOST=i.daco.dev
+      - DISCOURSE_DATABASE_HOST=postgresql
+      - DISCOURSE_DATABASE_PORT_NUMBER=5432
+      - DISCOURSE_DATABASE_USER=postgres
+      - DISCOURSE_DATABASE_PASSWORD=discourse
+      - DISCOURSE_DATABASE_NAME=discourse
+      - DISCOURSE_REDIS_HOST=redis
+      - DISCOURSE_REDIS_PASSWORD=discourse
+      - DISCOURSE_REDIS_PORT_NUMBER=6379
+      - POSTGRESQL_CLIENT_POSTGRES_USER=postgres
+      - POSTGRESQL_CLIENT_POSTGRES_PASSWORD=discourse
+      - POSTGRESQL_CLIENT_CREATE_DATABASE_NAME=discourse
+      - POSTGRESQL_CLIENT_CREATE_DATABASE_EXTENSIONS=hstore,pg_trgm
+      - DISCOURSE_SMTP_HOST=smtp.outlook.com
+      - DISCOURSE_SMTP_PORT=587
+      - DISCOURSE_SMTP_USER=info@daco.dev
+      - DISCOURSE_SMTP_PASSWORD=
+      - DISCOURSE_SMTP_PROTOCOL=tls
+      - DISCOURSE_EMAIL=info@daco.dev
+    networks:
+      - default
+      - main_default
+    deploy:
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.discourse.rule=Host(`i.daco.dev`)"
+        - "traefik.http.routers.discourse.tls.certresolver=myresolver"
+        - "traefik.http.services.discourse.loadbalancer.server.port=3000"
+  sidekiq:
+    image: docker.io/bitnami/discourse:2
+    depends_on:
+      - discourse
+    volumes:
+      - './discourse/sidekiq:/bitnami/discourse'
+    command: /opt/bitnami/scripts/discourse-sidekiq/run.sh
+    environment:
+      - DISCOURSE_HOST=i.daco.dev
+      - DISCOURSE_DATABASE_HOST=postgresql
+      - DISCOURSE_DATABASE_PORT_NUMBER=5432
+      - DISCOURSE_DATABASE_USER=postgres
+      - DISCOURSE_DATABASE_PASSWORD=discourse
+      - DISCOURSE_DATABASE_NAME=discourse
+      - DISCOURSE_REDIS_HOST=redis
+      - DISCOURSE_REDIS_PASSWORD=discourse
+      - DISCOURSE_REDIS_PORT_NUMBER=6379
+      - DISCOURSE_SMTP_HOST=smtp.outlook.com
+      - DISCOURSE_SMTP_PORT=587
+      - DISCOURSE_SMTP_USER=info@daco.dev
+      - DISCOURSE_SMTP_PASSWORD=
+      - DISCOURSE_SMTP_PROTOCOL=tls
+
+networks:
+  main_default:
+    external: true
+    name: main_default
